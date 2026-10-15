@@ -85,13 +85,17 @@ if (field('password') !== null) {
 }
 
 // simple string columns
-foreach (['phone', 'country', 'avatar', 'bio'] as $col) {
+if (field('countryCode') !== null && field('country_code') === null) {
+    request_set('country_code', field('countryCode'));
+}
+foreach (['phone', 'country_code', 'country', 'avatar', 'bio'] as $col) {
     if (field($col) !== null) {
         $sets[] = "{$col} = ?";
         $types .= 's';
         $vals[] = (string) field($col);
     }
 }
+
 
 // status (blocked also kills the user's sessions)
 if (field('status') !== null) {

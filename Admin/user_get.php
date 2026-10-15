@@ -24,14 +24,14 @@ if ($rawId === '') {
 
 if (is_numeric($rawId)) {
     $stmt = $conn->prepare(
-        'SELECT id, user_id, name, email, phone, country, avatar, bio, vip, level, xp, status, created_at, updated_at
+        'SELECT id, user_id, name, email, phone, country_code, country, avatar, bio, vip, level, xp, status, created_at, updated_at
          FROM users WHERE id = ? LIMIT 1'
     );
     $intId = (int) $rawId;
     $stmt->bind_param('i', $intId);
 } else {
     $stmt = $conn->prepare(
-        'SELECT id, user_id, name, email, phone, country, avatar, bio, vip, level, xp, status, created_at, updated_at
+        'SELECT id, user_id, name, email, phone, country_code, country, avatar, bio, vip, level, xp, status, created_at, updated_at
          FROM users WHERE user_id = ? LIMIT 1'
     );
     $stmt->bind_param('s', $rawId);

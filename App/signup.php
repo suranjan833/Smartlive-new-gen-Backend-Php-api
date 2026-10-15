@@ -17,10 +17,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_error('Method not allowed, use POST', 405);
 }
 
-$name     = (string) field('name', '');
-$email    = strtolower((string) field('email', ''));
-$password = (string) field('password', '');
-$phone    = field('phone');
+$name        = (string) field('name', '');
+$email       = strtolower((string) field('email', ''));
+$password    = (string) field('password', '');
+$phone       = field('phone');
+$countryCode = field('country_code') ?? field('countryCode');
+$country     = field('country');
 
 if (!is_valid_name($name)) {
     json_error('Name must be between 2 and 60 characters', 422);
@@ -31,6 +33,10 @@ if (!is_valid_email($email)) {
 if (!is_valid_password($password)) {
     json_error('Password must be at least 6 characters', 422);
 }
+
+$countryCode = $countryCode !== null && $countryCode !== '' ? trim((string) $countryCode) : null;
+$country     = $country !== null && $country !== '' ? trim((string) $country) : null;
+$phone       = $phone !== null && $phone !== '' ? trim((string) $phone) : null;
 
 $conn = db();
 
@@ -48,11 +54,12 @@ $hash = password_hash($password, PASSWORD_DEFAULT);
 // Generate auto-incrementing custom user ID (e.g. smart-lv-000001)
 $userCustomId = generate_user_id($conn);
 
-$stmt = $conn->prepare('INSERT INTO users (user_id, name, email, password_hash, phone) VALUES (?, ?, ?, ?, ?)');
-$stmt->bind_param('sssss', $userCustomId, $name, $email, $hash, $phone);
+$stmt = $conn->prepare('INSERT INTO users (user_id, name, email, password_hash, phone, country_code, country) VALUES (?, ?, ?, ?, ?, ?, ?)');
+$stmt->bind_param('sssssss', $userCustomId, $name, $email, $hash, $phone, $countryCode, $country);
 $stmt->execute();
 $userId = (int) $conn->insert_id;
 $stmt->close();
+
 
 // Every user gets a wallet (0 coins) on signup
 ensure_wallet($conn, $userId);

@@ -11,7 +11,12 @@ SUMMARY OF CHANGES
    - Holds formatted, monotonic custom user IDs (e.g., "smart-lv-000001")
    - Added index `idx_users_user_id` for fast lookups by custom ID
 
-2. Added `app_sequences` table:
+2. Added `country_code` column to `users` table:
+   - Type: VARCHAR(10) NULL
+   - Placed after `phone` column
+   - Holds country dialing or ISO code (e.g., "IN", "+91", "US")
+
+3. Added `app_sequences` table:
    - Maintains independent, persistent, auto-incrementing counters
    - Used to generate "smart-lv-000001", "smart-lv-000002", etc.
    - Guaranteed that if a user is deleted, their ID is NEVER reused!
@@ -21,9 +26,10 @@ SUMMARY OF CHANGES
 MIGRATION QUERIES FOR EXISTING DATABASE (RUN IN PHPMYADMIN / MYSQL)
 ========================================================================
 
--- 1. Add user_id column and index to existing `users` table:
+-- 1. Add user_id and country_code columns to existing `users` table:
 ALTER TABLE `users`
   ADD COLUMN `user_id` VARCHAR(32) NULL UNIQUE AFTER `id`,
+  ADD COLUMN `country_code` VARCHAR(10) NULL AFTER `phone`,
   ADD INDEX `idx_users_user_id` (`user_id`);
 
 -- 2. Create the sequences table:
@@ -31,6 +37,105 @@ CREATE TABLE IF NOT EXISTS `app_sequences` (
     `seq_name`   VARCHAR(50) PRIMARY KEY,
     `last_value` INT UNSIGNED NOT NULL DEFAULT 0
 ) ENGINE = InnoDB;
+
+-- 3. Add category & badge tag to `streams` table:
+ALTER TABLE `streams`
+  ADD COLUMN `category` VARCHAR(40) NOT NULL DEFAULT 'Popular' AFTER `title`,
+  ADD COLUMN `tag` VARCHAR(40) NULL DEFAULT 'Rising Star' AFTER `category`,
+  ADD INDEX `idx_streams_cat` (`status`, `category`);
+
+-- 4. Create Party Audio Rooms tables:
+CREATE TABLE IF NOT EXISTS `audio_rooms` (
+    `id`            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `host_id`       INT UNSIGNED NOT NULL,
+    `channel`       VARCHAR(64) NOT NULL UNIQUE,
+    `title`         VARCHAR(120) NOT NULL,
+    `category`      VARCHAR(40) NOT NULL DEFAULT 'Party',
+    `cover`         VARCHAR(255) NULL,
+    `status`        ENUM('live','ended') NOT NULL DEFAULT 'live',
+    `listeners`     INT UNSIGNED NOT NULL DEFAULT 0,
+    `peak_listeners` INT UNSIGNED NOT NULL DEFAULT 0,
+    `coins_earned`  INT UNSIGNED NOT NULL DEFAULT 0,
+    `started_at`    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `ended_at`      DATETIME NULL,
+    INDEX `idx_ar_status` (`status`, `id`),
+    CONSTRAINT `fk_ar_host` FOREIGN KEY (`host_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS `room_seats` (
+    `id`         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `room_id`    INT UNSIGNED NOT NULL,
+    `seat_index` TINYINT UNSIGNED NOT NULL DEFAULT 1,
+    `user_id`    INT UNSIGNED NULL,
+    `is_muted`   TINYINT(1) NOT NULL DEFAULT 0,
+    `joined_at`  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY `uq_room_seat` (`room_id`, `seat_index`),
+    CONSTRAINT `fk_rs_room` FOREIGN KEY (`room_id`) REFERENCES `audio_rooms` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_rs_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE = InnoDB;
+
+-- 5. Create Store & Backpack (My Bag) tables:
+CREATE TABLE IF NOT EXISTS `store_items` (
+    `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `name`        VARCHAR(100) NOT NULL,
+    `type`        ENUM('frame','entry','ride','badge','bubble') NOT NULL DEFAULT 'frame',
+    `coins`       INT UNSIGNED NOT NULL DEFAULT 0,
+    `days`        INT UNSIGNED NOT NULL DEFAULT 30,
+    `image_url`   VARCHAR(255) NOT NULL,
+    `preview_url` VARCHAR(255) NULL,
+    `active`      TINYINT(1) NOT NULL DEFAULT 1,
+    `created_at`  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX `idx_store_type` (`type`, `active`)
+) ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS `user_bag` (
+    `id`         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `user_id`    INT UNSIGNED NOT NULL,
+    `item_id`    INT UNSIGNED NOT NULL,
+    `is_equipped` TINYINT(1) NOT NULL DEFAULT 0,
+    `expires_at` DATETIME NOT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX `idx_ub_user` (`user_id`, `item_id`),
+    CONSTRAINT `fk_ub_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_ub_item` FOREIGN KEY (`item_id`) REFERENCES `store_items` (`id`) ON DELETE CASCADE
+) ENGINE = InnoDB;
+
+-- 6. Create User Follows table:
+CREATE TABLE IF NOT EXISTS `user_follows` (
+    `id`           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `follower_id`  INT UNSIGNED NOT NULL,
+    `following_id` INT UNSIGNED NOT NULL,
+    `created_at`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY `uq_follow` (`follower_id`, `following_id`),
+    CONSTRAINT `fk_uf_follower` FOREIGN KEY (`follower_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_uf_following` FOREIGN KEY (`following_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE = InnoDB;
+
+-- 7. Create Shorts & Likes tables:
+CREATE TABLE IF NOT EXISTS `shorts` (
+    `id`         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `user_id`    INT UNSIGNED NOT NULL,
+    `title`      VARCHAR(255) NOT NULL,
+    `video_url`  VARCHAR(255) NOT NULL,
+    `cover_url`  VARCHAR(255) NULL,
+    `views`      INT UNSIGNED NOT NULL DEFAULT 0,
+    `likes`      INT UNSIGNED NOT NULL DEFAULT 0,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX `idx_shorts_user` (`user_id`),
+    CONSTRAINT `fk_shorts_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS `short_likes` (
+    `id`         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `short_id`   INT UNSIGNED NOT NULL,
+    `user_id`    INT UNSIGNED NOT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY `uq_short_like` (`short_id`, `user_id`),
+    CONSTRAINT `fk_sl_short` FOREIGN KEY (`short_id`) REFERENCES `shorts` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_sl_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE = InnoDB;
+
+
 
 
 ========================================================================

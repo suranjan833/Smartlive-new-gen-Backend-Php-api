@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS users (
     email         VARCHAR(120) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     phone         VARCHAR(20)      NULL,
+    country_code  VARCHAR(10)      NULL,
     country       VARCHAR(60)      NULL,
     avatar        VARCHAR(255)     NULL,
     bio           VARCHAR(255)     NULL,
@@ -316,6 +317,8 @@ CREATE TABLE IF NOT EXISTS streams (
     host_id      INT UNSIGNED NOT NULL,
     channel      VARCHAR(64) NOT NULL UNIQUE,   -- pass to the realtime socket later
     title        VARCHAR(120) NOT NULL,
+    category     VARCHAR(40) NOT NULL DEFAULT 'Popular', -- Freshers, Popular, Spotlight, PK Matches
+    tag          VARCHAR(40) NULL DEFAULT 'Rising Star', -- Super Star, Big Star, Rising Star
     description  VARCHAR(255) NULL,
     cover        VARCHAR(255) NULL,
     status       ENUM('live','ended') NOT NULL DEFAULT 'live',
@@ -326,6 +329,7 @@ CREATE TABLE IF NOT EXISTS streams (
     started_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ended_at     DATETIME NULL,
     INDEX idx_streams_status (status, id),
+    INDEX idx_streams_cat (status, category),
     CONSTRAINT fk_streams_host FOREIGN KEY (host_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE = InnoDB;
 
@@ -356,6 +360,106 @@ CREATE TABLE IF NOT EXISTS stream_gifts (
     CONSTRAINT fk_sg_sender FOREIGN KEY (sender_id) REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT fk_sg_receiver FOREIGN KEY (receiver_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE = InnoDB;
+
+-- -----------------------------------------------------
+-- Party Audio / Voice Rooms
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS audio_rooms (
+    id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    host_id       INT UNSIGNED NOT NULL,
+    channel       VARCHAR(64) NOT NULL UNIQUE,
+    title         VARCHAR(120) NOT NULL,
+    category      VARCHAR(40) NOT NULL DEFAULT 'Party',
+    cover         VARCHAR(255) NULL,
+    status        ENUM('live','ended') NOT NULL DEFAULT 'live',
+    listeners     INT UNSIGNED NOT NULL DEFAULT 0,
+    peak_listeners INT UNSIGNED NOT NULL DEFAULT 0,
+    coins_earned  INT UNSIGNED NOT NULL DEFAULT 0,
+    started_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ended_at      DATETIME NULL,
+    INDEX idx_ar_status (status, id),
+    CONSTRAINT fk_ar_host FOREIGN KEY (host_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS room_seats (
+    id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    room_id    INT UNSIGNED NOT NULL,
+    seat_index TINYINT UNSIGNED NOT NULL DEFAULT 1,
+    user_id    INT UNSIGNED NULL,
+    is_muted   TINYINT(1) NOT NULL DEFAULT 0,
+    joined_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_room_seat (room_id, seat_index),
+    CONSTRAINT fk_rs_room FOREIGN KEY (room_id) REFERENCES audio_rooms (id) ON DELETE CASCADE,
+    CONSTRAINT fk_rs_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE = InnoDB;
+
+-- -----------------------------------------------------
+-- Store Items & User Backpack (My Bag)
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS store_items (
+    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name        VARCHAR(100) NOT NULL,
+    type        ENUM('frame','entry','ride','badge','bubble') NOT NULL DEFAULT 'frame',
+    coins       INT UNSIGNED NOT NULL DEFAULT 0,
+    days        INT UNSIGNED NOT NULL DEFAULT 30,
+    image_url   VARCHAR(255) NOT NULL,
+    preview_url VARCHAR(255) NULL,
+    active      TINYINT(1) NOT NULL DEFAULT 1,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_store_type (type, active)
+) ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS user_bag (
+    id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id    INT UNSIGNED NOT NULL,
+    item_id    INT UNSIGNED NOT NULL,
+    is_equipped TINYINT(1) NOT NULL DEFAULT 0,
+    expires_at DATETIME NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_ub_user (user_id, item_id),
+    CONSTRAINT fk_ub_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_ub_item FOREIGN KEY (item_id) REFERENCES store_items (id) ON DELETE CASCADE
+) ENGINE = InnoDB;
+
+-- -----------------------------------------------------
+-- User Follows (Social)
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS user_follows (
+    id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    follower_id  INT UNSIGNED NOT NULL,
+    following_id INT UNSIGNED NOT NULL,
+    created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_follow (follower_id, following_id),
+    CONSTRAINT fk_uf_follower FOREIGN KEY (follower_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_uf_following FOREIGN KEY (following_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE = InnoDB;
+
+-- -----------------------------------------------------
+-- Shorts (Short Videos) & Likes
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS shorts (
+    id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id    INT UNSIGNED NOT NULL,
+    title      VARCHAR(255) NOT NULL,
+    video_url  VARCHAR(255) NOT NULL,
+    cover_url  VARCHAR(255) NULL,
+    views      INT UNSIGNED NOT NULL DEFAULT 0,
+    likes      INT UNSIGNED NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_shorts_user (user_id),
+    CONSTRAINT fk_shorts_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS short_likes (
+    id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    short_id   INT UNSIGNED NOT NULL,
+    user_id    INT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_short_like (short_id, user_id),
+    CONSTRAINT fk_sl_short FOREIGN KEY (short_id) REFERENCES shorts (id) ON DELETE CASCADE,
+    CONSTRAINT fk_sl_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE = InnoDB;
+
 
 -- =====================================================
 -- SEED DATA

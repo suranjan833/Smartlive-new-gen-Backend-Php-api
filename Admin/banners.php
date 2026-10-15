@@ -18,7 +18,10 @@ require_once __DIR__ . '/banners_def.php';
 
 $conn = db();
 $account = require_admin($conn);
-require_permission($account, 'banners', $_SERVER['REQUEST_METHOD'] === 'GET' ? 'view' : 'edit');
+$method  = $_SERVER['REQUEST_METHOD'];
+$ability = $method === 'GET' ? 'view' : ($method === 'DELETE' ? 'delete' : 'edit');
+require_permission($account, 'banners', $ability);
+
 
 // multipart image upload -> image_url
 $uploaded = handle_upload('image', 'banners');

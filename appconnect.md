@@ -16,9 +16,19 @@ Backend API for the SmartLive live-streaming app (mobile/web client).
 | 1 | Authentication      | 4         |
 | 2 | User / Profile      | 4         |
 | 3 | Wallet              | 3         |
-| 4 | Live Streams        | 6         |
+| 4 | Live Video Streams  | 6         |
 | 5 | Gifts               | 2         |
-| **Total** | | **19** |
+| 6 | Banners & Events    | 1         |
+| 7 | Search & Discovery  | 1         |
+| 8 | Leaderboard & Ranks | 1         |
+| 9 | Party Audio Rooms   | 6         |
+| 10| Store & Backpack    | 4         |
+| 11| Social / Follows    | 2         |
+| 12| Shorts (Reels)      | 2         |
+| 13| Level & Earnings    | 2         |
+| 14| Notifications       | 1         |
+| **Total** | | **39** |
+
 
 ---
 
@@ -35,11 +45,13 @@ Backend API for the SmartLive live-streaming app (mobile/web client).
   "name": "John Doe",
   "email": "john@example.com",
   "password": "secret123",
-  "phone": "+911234567890"
+  "phone": "9876543210",
+  "country_code": "IN",
+  "country": "India"
 }
 ```
 
-> `phone` is optional.
+> `phone`, `country_code` (or `countryCode`), and `country` are optional.
 
 **Response (201):**
 
@@ -55,9 +67,12 @@ Backend API for the SmartLive live-streaming app (mobile/web client).
       "user_id": "smart-lv-000001",
       "name": "John Doe",
       "email": "john@example.com",
-      "phone": "+911234567890",
+      "phone": "9876543210",
+      "country_code": "IN",
+      "country": "India",
       "avatar": null,
       "bio": null,
+
       "vip": 0,
       "level": 1,
       "xp": 0,
@@ -794,17 +809,169 @@ Tokens expire after **7 days**. Expired tokens return `401 Unauthorized`.
 
 ---
 
-## 📁 Default Data
+## 6. Banners & Events (1 API)
 
-After importing `database.sql`, the following is seeded:
-
-- **Admin:** `admin@livestream.com` / `Admin@123`
-- **Gifts:** Rose (1 coin), Heart (5), Teddy (20), Car (50), Rocket (100), Crown (500), Lion (1000)
-- **Levels:** Newbie (1), Bronze (10), Silver (20), Gold (30), Platinum (50), Diamond (70), Supreme (90)
-- **Settings:** All enabled by default
-- **VIP Plans:** Bronze ($4.99/30d), Silver ($9.99/30d), Gold ($19.99/90d)
+### 6.1 Get Active Banners
+`GET /banners.php?category=event|home`
+- **Auth:** Not required
+- **Response:**
+```json
+{
+  "success": true,
+  "message": "Banners loaded",
+  "data": {
+    "banners": [
+      {
+        "id": 1,
+        "name": "Event Schedule",
+        "category": "event",
+        "price": "0.00",
+        "coins": 0,
+        "image_url": "https://images.unsplash.com/...",
+        "active": 1,
+        "created_at": "2026-10-15 13:48:15"
+      }
+    ]
+  }
+}
+```
 
 ---
 
-*Document Version: 1.0*
-*Last Updated: 2026-10-12*
+## 7. Search & Discovery (1 API)
+
+### 7.1 Search
+`GET /search.php?q=smart-lv-000001`
+- **Auth:** Not required
+- Returns matched `users` (by custom ID or name), live `streams`, and party audio `rooms`.
+
+---
+
+## 8. Leaderboard & Rankings (1 API)
+
+### 8.1 Top Stars & Top Gifters
+`GET /leaderboard.php?type=stars|gifters&period=daily|weekly|monthly|all`
+- **Auth:** Not required
+- Returns rankings with rank position (1, 2, 3...), user custom ID, name, avatar, and total coins.
+
+---
+
+## 9. Party Audio Rooms (6 APIs)
+
+### 9.1 List Party Rooms
+`GET /room_list.php?category=Party&status=live&page=1&limit=20`
+- **Auth:** Not required
+- Returns active party rooms, listener count, and active seated `speakers` (avatars/names).
+
+### 9.2 Create Party Room
+`POST /room_create.php`
+- **Auth:** Required
+- **Body:** `{ "title": "Bollywood Night 🎵", "category": "Party", "cover": "url" }`
+- Assigns the host to microphone seat #1.
+
+### 9.3 Get Room Details
+`GET /room_get.php?id=1`
+- **Auth:** Not required
+- Returns room info, listener stats, and all 8 seats (showing which user occupies each seat).
+
+### 9.4 Join Party Room
+`POST /room_join.php`
+- **Auth:** Required
+- **Body:** `{ "room_id": 1, "seat_index": 2 }` (seat_index is optional)
+
+### 9.5 Leave Party Room
+`POST /room_leave.php`
+- **Auth:** Required
+- **Body:** `{ "room_id": 1 }` (vacates seat if occupied)
+
+### 9.6 End Party Room
+`POST /room_end.php`
+- **Auth:** Required (Host only)
+- **Body:** `{ "room_id": 1 }`
+
+---
+
+## 10. Store & Backpack (My Bag) (4 APIs)
+
+### 10.1 Store Catalog
+`GET /store_items.php?type=frame|entry|ride|badge|bubble`
+- **Auth:** Not required
+- Returns item catalog with coin price and duration (days).
+
+### 10.2 Buy Store Item
+`POST /store_buy.php`
+- **Auth:** Required
+- **Body:** `{ "item_id": 1 }`
+- Deducts coins from wallet and adds the item to the user's bag.
+
+### 10.3 My Bag (Backpack)
+`GET /my_bag.php`
+- **Auth:** Required
+- Returns all purchased items with active status and equipped flag.
+
+### 10.4 Equip / Unequip Item
+`POST /equip_item.php`
+- **Auth:** Required
+- **Body:** `{ "item_id": 1, "equip": true }`
+
+---
+
+## 11. Social / Follows (2 APIs)
+
+### 11.1 Follow / Unfollow
+`POST /follow.php`
+- **Auth:** Required
+- **Body:** `{ "user_id": 5, "action": "follow|unfollow" }`
+
+### 11.2 Followers / Following List
+`GET /followers.php?user_id=5&type=followers|following`
+- **Auth:** Not required
+
+---
+
+## 12. Shorts Feed (2 APIs)
+
+### 12.1 Shorts List
+`GET /shorts_list.php?page=1&limit=10`
+- **Auth:** Optional (if token sent, returns `is_liked: true|false`)
+
+### 12.2 Like Short
+`POST /short_like.php`
+- **Auth:** Required
+- **Body:** `{ "short_id": 1, "action": "like|unlike" }`
+
+---
+
+## 13. Level & Host Earnings (2 APIs)
+
+### 13.1 User Level & XP Progress
+`GET /level.php`
+- **Auth:** Required
+- Returns current level, XP, next milestone, progress percentage, and rewards ladder.
+
+### 13.2 Host Earnings Tracking
+`GET /earnings.php`
+- **Auth:** Required
+- Returns total beans earned, this month's earnings, and salary payout history.
+
+---
+
+## 14. Notifications (1 API)
+
+### 14.1 Notifications List
+`GET /notifications.php?page=1&limit=20`
+- **Auth:** Not required
+- Returns platform announcements and promo alerts.
+
+---
+
+## 📁 Seeded Demo Data Available
+
+The database is now populated with live test data:
+- **Streamers / Users:** Pari✨ (`smart-lv-000001`), Kashish_singh (`smart-lv-000002`), Riya_Queen, Gaming_Aman, Raj Music, DJ Nightowl, ShayarKumar, GameGuru, MotivatorMax.
+- **Banners:** Event Schedule ("Join exciting events & win rewards!"), Mega Star Hunt 2026, Weekend PK Championship.
+- **Streams:** Live streams under `Popular`, `Freshers`, `Spotlight`, `PK Matches` with badges (`Super Star`, `Big Star`, `Rising Star`).
+- **Party Audio Rooms:** Bollywood Night 🎵, Late Night Chill 🌙, Poetry & Shairi 📝, Gaming Talk 🎮, Morning Motivation ☀️ with seated speakers.
+- **Store Items:** Golden Phoenix Frame, Neon Cyber Frame, Diamond Crown, Lamborghini Aventador, Royal Carriage, Cyberpunk Jet.
+- **Shorts:** Trending reels with views and likes.
+

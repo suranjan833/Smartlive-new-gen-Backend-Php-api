@@ -55,7 +55,7 @@ $stmt->close();
 
 // Page of users
 $stmt = $conn->prepare(
-    "SELECT id, user_id, name, email, phone, country, avatar, bio, vip, level, status, created_at, updated_at
+    "SELECT id, user_id, name, email, phone, country_code, country, avatar, bio, vip, level, status, created_at, updated_at
      FROM users {$whereSql}
      ORDER BY id DESC
      LIMIT ? OFFSET ?"

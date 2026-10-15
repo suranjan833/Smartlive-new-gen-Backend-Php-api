@@ -19,10 +19,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $conn = db();
 $user = require_auth($conn, 'user');
 
-$name   = field('name');
-$phone  = field('phone');
-$bio    = field('bio');
-$avatar = field('avatar');
+$name        = field('name');
+$phone       = field('phone');
+$countryCode = field('country_code') ?? field('countryCode');
+$country     = field('country');
+$bio         = field('bio');
+$avatar      = field('avatar');
 
 $updates = [];
 $params  = [];
@@ -41,6 +43,16 @@ if ($phone !== null) {
     $params[]  = $phone;
     $types    .= 's';
 }
+if ($countryCode !== null) {
+    $updates[] = 'country_code = ?';
+    $params[]  = trim((string) $countryCode);
+    $types    .= 's';
+}
+if ($country !== null) {
+    $updates[] = 'country = ?';
+    $params[]  = trim((string) $country);
+    $types    .= 's';
+}
 if ($bio !== null) {
     if (mb_strlen((string) $bio) > 255) {
         json_error('Bio must be 255 characters or fewer', 422);
@@ -56,8 +68,9 @@ if ($avatar !== null) {
 }
 
 if (empty($updates)) {
-    json_error('Send at least one field to update (name, phone, bio, avatar)', 422);
+    json_error('Send at least one field to update (name, phone, country_code, country, bio, avatar)', 422);
 }
+
 
 $sql  = 'UPDATE users SET ' . implode(', ', $updates) . ' WHERE id = ?';
 $stmt = $conn->prepare($sql);

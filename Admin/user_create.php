@@ -22,16 +22,17 @@ $conn = db();
 $account = require_admin($conn);
 require_permission($account, 'users', 'edit');
 
-$name     = (string) field('name', '');
-$email    = strtolower((string) field('email', ''));
-$password = (string) field('password', '');
-$phone    = (string) field('phone', '');
-$country  = (string) field('country', '');
-$status   = strtolower((string) field('status', 'active'));
-$vip      = field('vip', false);
-$vip      = is_bool($vip) ? $vip : in_array(strtolower((string) $vip), ['1', 'true', 'yes', 'on'], true);
-$level    = max(1, (int) field('level', 1));
-$coins    = max(0, (int) field('coins', 0));
+$name        = (string) field('name', '');
+$email       = strtolower((string) field('email', ''));
+$password    = (string) field('password', '');
+$phone       = (string) field('phone', '');
+$countryCode = field('country_code') ?? field('countryCode');
+$country     = (string) field('country', '');
+$status      = strtolower((string) field('status', 'active'));
+$vip         = field('vip', false);
+$vip         = is_bool($vip) ? $vip : in_array(strtolower((string) $vip), ['1', 'true', 'yes', 'on'], true);
+$level       = max(1, (int) field('level', 1));
+$coins       = max(0, (int) field('coins', 0));
 
 if (!is_valid_name($name)) {
     json_error('name must be 2-60 characters', 422);
@@ -46,6 +47,8 @@ if ($status !== 'active' && $status !== 'blocked') {
     json_error('status must be "active" or "blocked"', 422);
 }
 
+$countryCode = $countryCode !== null && $countryCode !== '' ? trim((string) $countryCode) : null;
+
 // Unique email
 $stmt = $conn->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
 $stmt->bind_param('s', $email);
@@ -59,11 +62,11 @@ $stmt->close();
 $userCustomId = generate_user_id($conn);
 
 $stmt = $conn->prepare(
-    'INSERT INTO users (user_id, name, email, password_hash, phone, country, vip, level, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO users (user_id, name, email, password_hash, phone, country_code, country, vip, level, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 );
 $vipInt = $vip ? 1 : 0;
-$stmt->bind_param('ssssssiss', $userCustomId, $name, $email, $password, $phone, $country, $vipInt, $level, $status);
+$stmt->bind_param('sssssssiss', $userCustomId, $name, $email, $password, $phone, $countryCode, $country, $vipInt, $level, $status);
 $stmt->execute();
 $userId = (int) $stmt->insert_id;
 $stmt->close();
@@ -84,9 +87,10 @@ try {
 }
 
 $stmt = $conn->prepare(
-    'SELECT id, user_id, name, email, phone, country, avatar, bio, vip, level, status, created_at
+    'SELECT id, user_id, name, email, phone, country_code, country, avatar, bio, vip, level, status, created_at
      FROM users WHERE id = ? LIMIT 1'
 );
+
 $stmt->bind_param('i', $userId);
 $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();

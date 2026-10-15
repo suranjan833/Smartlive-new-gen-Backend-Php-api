@@ -48,14 +48,29 @@ Backend API for the SmartLive live-streaming app (mobile/web client).
   "success": true,
   "message": "Account created successfully",
   "data": {
-    "id": 5,
-    "name": "John Doe",
-    "email": "john@example.com"
+    "token": "8a3efac6377459ea0bd955e96cf89784ccc904560d72ecc00c268f4a281283d5",
+    "user_id": "smart-lv-000001",
+    "user": {
+      "id": 1,
+      "user_id": "smart-lv-000001",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "phone": "+911234567890",
+      "avatar": null,
+      "bio": null,
+      "vip": 0,
+      "level": 1,
+      "xp": 0,
+      "status": "active",
+      "created_at": "2026-10-14T21:00:00Z",
+      "updated_at": "2026-10-14T21:00:00Z"
+    }
   }
 }
 ```
 
-> A wallet (0 coins) is auto-created for the new user.
+> A persistent, strictly monotonic `user_id` (e.g. `smart-lv-000001`) is generated automatically. If an account is deleted, its ID is never reused.
+> A 7-day session `token` and wallet (0 coins) are auto-created on signup.
 
 ---
 
@@ -63,11 +78,18 @@ Backend API for the SmartLive live-streaming app (mobile/web client).
 
 `POST /login.php`
 
-**Body:**
+**Body (Email or Custom User ID):**
 
 ```json
 {
   "email": "john@example.com",
+  "password": "secret123"
+}
+```
+*or:*
+```json
+{
+  "user_id": "smart-lv-000001",
   "password": "secret123"
 }
 ```
@@ -80,8 +102,10 @@ Backend API for the SmartLive live-streaming app (mobile/web client).
   "message": "Login successful",
   "data": {
     "token": "abc123...",
+    "user_id": "smart-lv-000001",
     "user": {
-      "id": 5,
+      "id": 1,
+      "user_id": "smart-lv-000001",
       "name": "John Doe",
       "email": "john@example.com",
       "phone": "+911234567890",
@@ -90,12 +114,13 @@ Backend API for the SmartLive live-streaming app (mobile/web client).
       "vip": 0,
       "level": 1,
       "status": "active",
-      "created_at": "2026-10-02T10:00:00Z",
-      "updated_at": "2026-10-02T10:00:00Z"
+      "created_at": "2026-10-14T21:00:00Z",
+      "updated_at": "2026-10-14T21:00:00Z"
     }
   }
 }
 ```
+
 
 > Save the `token`. It is valid for **7 days**.
 > Send it as `Authorization: Bearer <token>` on all subsequent requests.

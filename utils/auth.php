@@ -3,6 +3,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/response.php';
+require_once __DIR__ . '/sequence.php';
 
 /**
  * Token-based authentication shared by App and Admin APIs.

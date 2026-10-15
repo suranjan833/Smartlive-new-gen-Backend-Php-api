@@ -13,17 +13,19 @@
 -- Default admin login: admin@livestream.com / Admin@123
 -- =====================================================
 
-CREATE DATABASE IF NOT EXISTS live_streaming
-    CHARACTER SET utf8mb4
-    COLLATE utf8mb4_unicode_ci;
+-- NOTE for cPanel / phpMyAdmin:
+-- Select your database first (e.g. saptahi1_smartlive), then import this file.
+-- (CREATE DATABASE / USE are commented out to prevent permission errors on hosting)
+-- CREATE DATABASE IF NOT EXISTS live_streaming CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- USE live_streaming;
 
-USE live_streaming;
 
 -- -----------------------------------------------------
 -- App users (viewers / streamers)
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
     id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id       VARCHAR(32)  NULL UNIQUE,     -- formatted auto-increment ID e.g. smart-lv-000001
     name          VARCHAR(60)  NOT NULL,
     email         VARCHAR(120) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
@@ -39,9 +41,11 @@ CREATE TABLE IF NOT EXISTS users (
     created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_users_email (email),
+    INDEX idx_users_user_id (user_id),
     INDEX idx_users_status (status),
     INDEX idx_users_vip (vip)
 ) ENGINE = InnoDB;
+
 
 -- -----------------------------------------------------
 -- Admin panel accounts
@@ -56,8 +60,17 @@ CREATE TABLE IF NOT EXISTS admins (
 ) ENGINE = InnoDB;
 
 -- -----------------------------------------------------
+-- Sequences (monotonic counters, e.g. custom user IDs)
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS app_sequences (
+    seq_name   VARCHAR(50) PRIMARY KEY,
+    last_value INT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE = InnoDB;
+
+-- -----------------------------------------------------
 -- Sessions for users, admins and sub-admins (token auth)
 -- -----------------------------------------------------
+
 CREATE TABLE IF NOT EXISTS sessions (
     id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_type  ENUM('user','admin','sub_admin') NOT NULL,

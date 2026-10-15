@@ -55,15 +55,19 @@ if ($stmt->get_result()->fetch_assoc()) {
 }
 $stmt->close();
 
+// Generate auto-increment custom user ID (e.g. smart-lv-000001)
+$userCustomId = generate_user_id($conn);
+
 $stmt = $conn->prepare(
-    'INSERT INTO users (name, email, password_hash, phone, country, vip, level, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO users (user_id, name, email, password_hash, phone, country, vip, level, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
 );
 $vipInt = $vip ? 1 : 0;
-$stmt->bind_param('sssssiss', $name, $email, $password, $phone, $country, $vipInt, $level, $status);
+$stmt->bind_param('ssssssiss', $userCustomId, $name, $email, $password, $phone, $country, $vipInt, $level, $status);
 $stmt->execute();
-$userId = $stmt->insert_id;
+$userId = (int) $stmt->insert_id;
 $stmt->close();
+
 
 // Wallet (with optional starting coins)
 $conn->begin_transaction();
@@ -80,12 +84,13 @@ try {
 }
 
 $stmt = $conn->prepare(
-    'SELECT id, name, email, phone, country, avatar, bio, vip, level, status, created_at
+    'SELECT id, user_id, name, email, phone, country, avatar, bio, vip, level, status, created_at
      FROM users WHERE id = ? LIMIT 1'
 );
 $stmt->bind_param('i', $userId);
 $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
 $stmt->close();
+
 
 json_success(['user' => $user, 'coins' => $coins], 'User created', 201);

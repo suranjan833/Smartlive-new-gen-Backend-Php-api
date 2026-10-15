@@ -1,0 +1,85 @@
+========================================================================
+SQL DATABASE CHANGES — SMARTLIVE
+Date: 2026-10-14
+========================================================================
+
+SUMMARY OF CHANGES
+------------------------------------------------------------------------
+1. Added `user_id` column to `users` table:
+   - Type: VARCHAR(32) NULL UNIQUE
+   - Placed after `id` column
+   - Holds formatted, monotonic custom user IDs (e.g., "smart-lv-000001")
+   - Added index `idx_users_user_id` for fast lookups by custom ID
+
+2. Added `app_sequences` table:
+   - Maintains independent, persistent, auto-incrementing counters
+   - Used to generate "smart-lv-000001", "smart-lv-000002", etc.
+   - Guaranteed that if a user is deleted, their ID is NEVER reused!
+
+
+========================================================================
+MIGRATION QUERIES FOR EXISTING DATABASE (RUN IN PHPMYADMIN / MYSQL)
+========================================================================
+
+-- 1. Add user_id column and index to existing `users` table:
+ALTER TABLE `users`
+  ADD COLUMN `user_id` VARCHAR(32) NULL UNIQUE AFTER `id`,
+  ADD INDEX `idx_users_user_id` (`user_id`);
+
+-- 2. Create the sequences table:
+CREATE TABLE IF NOT EXISTS `app_sequences` (
+    `seq_name`   VARCHAR(50) PRIMARY KEY,
+    `last_value` INT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE = InnoDB;
+
+
+========================================================================
+EXACT CHANGES IN `database.sql` FILE
+========================================================================
+
+1) In the `users` table definition:
+
+------------------------------------
+BEFORE:
+------------------------------------
+CREATE TABLE IF NOT EXISTS users (
+    id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name          VARCHAR(60)  NOT NULL,
+    email         VARCHAR(120) NOT NULL UNIQUE,
+    ...
+    INDEX idx_users_email (email),
+    INDEX idx_users_status (status),
+    INDEX idx_users_vip (vip)
+) ENGINE = InnoDB;
+
+------------------------------------
+AFTER:
+------------------------------------
+CREATE TABLE IF NOT EXISTS users (
+    id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id       VARCHAR(32)  NULL UNIQUE,     -- formatted auto-increment ID e.g. smart-lv-000001
+    name          VARCHAR(60)  NOT NULL,
+    email         VARCHAR(120) NOT NULL UNIQUE,
+    ...
+    INDEX idx_users_email (email),
+    INDEX idx_users_user_id (user_id),
+    INDEX idx_users_status (status),
+    INDEX idx_users_vip (vip)
+) ENGINE = InnoDB;
+
+
+2) Added `app_sequences` table definition:
+
+------------------------------------
+NEW TABLE:
+------------------------------------
+-- -----------------------------------------------------
+-- Sequences (monotonic counters, e.g. custom user IDs)
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS app_sequences (
+    seq_name   VARCHAR(50) PRIMARY KEY,
+    last_value INT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE = InnoDB;
+
+========================================================================
+

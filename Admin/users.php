@@ -29,11 +29,12 @@ $params = [];
 $types  = '';
 
 if ($search !== '') {
-    $where[]  = '(name LIKE ? OR email LIKE ?)';
+    $where[]  = '(name LIKE ? OR email LIKE ? OR user_id LIKE ?)';
     $like     = '%' . $search . '%';
     $params[] = $like;
     $params[] = $like;
-    $types   .= 'ss';
+    $params[] = $like;
+    $types   .= 'sss';
 }
 if ($status === 'active' || $status === 'blocked') {
     $where[]  = 'status = ?';
@@ -54,7 +55,7 @@ $stmt->close();
 
 // Page of users
 $stmt = $conn->prepare(
-    "SELECT id, name, email, phone, country, avatar, bio, vip, level, status, created_at, updated_at
+    "SELECT id, user_id, name, email, phone, country, avatar, bio, vip, level, status, created_at, updated_at
      FROM users {$whereSql}
      ORDER BY id DESC
      LIMIT ? OFFSET ?"

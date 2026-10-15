@@ -20,11 +20,11 @@ $conn = db();
 $account = require_admin($conn);
 require_permission($account, 'users', 'edit');
 
-$userId = (int) field('user_id', 0);
-$vip    = field('vip', null);
-$days   = max(1, (int) field('days', 30));
+$rawUser = field('user_id');
+$vip     = field('vip', null);
+$days    = max(1, (int) field('days', 30));
 
-if ($userId <= 0) {
+if ($rawUser === null || $rawUser === '') {
     json_error('user_id is required', 422);
 }
 if ($vip === null) {
@@ -32,15 +32,12 @@ if ($vip === null) {
 }
 $vip = is_bool($vip) ? $vip : in_array(strtolower((string) $vip), ['1', 'true', 'yes', 'on'], true);
 
-$stmt = $conn->prepare('SELECT id, name FROM users WHERE id = ? LIMIT 1');
-$stmt->bind_param('i', $userId);
-$stmt->execute();
-$user = $stmt->get_result()->fetch_assoc();
-$stmt->close();
-
+$user = find_user_by_id_or_code($conn, $rawUser);
 if (!$user) {
     json_error('User not found', 404);
 }
+$userId = (int) $user['id'];
+
 
 if ($vip) {
     $stmt = $conn->prepare(

@@ -22,30 +22,27 @@ $conn = db();
 $account = require_admin($conn);
 require_permission($account, 'users', 'edit');
 
-$userId = (int) field('user_id', 0);
-$coins  = (int) field('coins', 0);
-$note   = (string) field('note', '');
-$amount = (float) field('amount', 0.0);
+$rawUser = field('user_id');
+$coins   = (int) field('coins', 0);
+$note    = (string) field('note', '');
+$amount  = (float) field('amount', 0.0);
 $currency = strtoupper((string) field('currency', 'USD'));
 
-if ($userId <= 0) {
+if ($rawUser === null || $rawUser === '') {
     json_error('user_id is required', 422);
 }
 if ($coins <= 0) {
     json_error('coins must be a positive number', 422);
 }
 
-$stmt = $conn->prepare('SELECT id, name FROM users WHERE id = ? LIMIT 1');
-$stmt->bind_param('i', $userId);
-$stmt->execute();
-$target = $stmt->get_result()->fetch_assoc();
-$stmt->close();
-
+$target = find_user_by_id_or_code($conn, $rawUser);
 if (!$target) {
     json_error('User not found', 404);
 }
+$userId = (int) $target['id'];
 
 $description = $note !== '' ? 'Admin recharge: ' . $note : 'Admin recharge by ' . $account['name'];
+
 
 $conn->begin_transaction();
 try {

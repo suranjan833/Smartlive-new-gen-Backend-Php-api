@@ -10,6 +10,8 @@ require_once __DIR__ . '/../utils/db.php';
 require_once __DIR__ . '/../utils/response.php';
 require_once __DIR__ . '/../utils/validation.php';
 require_once __DIR__ . '/../utils/wallet.php';
+require_once __DIR__ . '/../utils/auth.php';
+require_once __DIR__ . '/../utils/sequence.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_error('Method not allowed, use POST', 405);
@@ -43,13 +45,31 @@ $stmt->close();
 
 $hash = password_hash($password, PASSWORD_DEFAULT);
 
-$stmt = $conn->prepare('INSERT INTO users (name, email, password_hash, phone) VALUES (?, ?, ?, ?)');
-$stmt->bind_param('ssss', $name, $email, $hash, $phone);
+// Generate auto-incrementing custom user ID (e.g. smart-lv-000001)
+$userCustomId = generate_user_id($conn);
+
+$stmt = $conn->prepare('INSERT INTO users (user_id, name, email, password_hash, phone) VALUES (?, ?, ?, ?, ?)');
+$stmt->bind_param('sssss', $userCustomId, $name, $email, $hash, $phone);
 $stmt->execute();
-$userId = $conn->insert_id;
+$userId = (int) $conn->insert_id;
 $stmt->close();
 
 // Every user gets a wallet (0 coins) on signup
 ensure_wallet($conn, $userId);
 
-json_success(['id' => $userId, 'name' => $name, 'email' => $email], 'Account created successfully', 201);
+// Generate session token on signup
+$token = create_session($conn, 'user', $userId);
+
+// Fetch the complete user record
+$stmt = $conn->prepare('SELECT * FROM users WHERE id = ? LIMIT 1');
+$stmt->bind_param('i', $userId);
+$stmt->execute();
+$user = $stmt->get_result()->fetch_assoc();
+$stmt->close();
+
+json_success([
+    'token'   => $token,
+    'user_id' => $userCustomId,
+    'user'    => public_account($user),
+], 'Account created successfully', 201);
+

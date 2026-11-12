@@ -26,10 +26,17 @@ SUMMARY OF CHANGES
 MIGRATION QUERIES FOR EXISTING DATABASE (RUN IN PHPMYADMIN / MYSQL)
 ========================================================================
 
--- 1. Add user_id and country_code columns to existing `users` table:
+-- 0. Ensure tables support 4-byte UTF-8 emojis (✨, 🎵, 🚀, etc.):
+ALTER TABLE `users` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE `streams` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- 1. Add user_id, google_id and country_code columns to existing `users` table:
 ALTER TABLE `users`
   ADD COLUMN `user_id` VARCHAR(32) NULL UNIQUE AFTER `id`,
+  ADD COLUMN `google_id` VARCHAR(100) NULL UNIQUE AFTER `email`,
   ADD COLUMN `country_code` VARCHAR(10) NULL AFTER `phone`,
+  ADD COLUMN `dob` DATE NULL AFTER `country`,
+  ADD COLUMN `gender` ENUM('male','female','other') NULL AFTER `dob`,
   ADD INDEX `idx_users_user_id` (`user_id`);
 
 -- 2. Create the sequences table:
@@ -186,5 +193,23 @@ CREATE TABLE IF NOT EXISTS app_sequences (
     last_value INT UNSIGNED NOT NULL DEFAULT 0
 ) ENGINE = InnoDB;
 
+
+3) Added `google_id` and image upload support:
+- Added `google_id` column to `users` table:
+  ALTER TABLE `users` ADD COLUMN `google_id` VARCHAR(100) NULL UNIQUE AFTER `email`;
+- Created `App/google_auth.php` (Auto Sign In / Sign Up with Google, auto `smart-lv-XXXXXX` user_id generation, token issuance)
+- Created `utils/upload.php` & `App/upload_image.php` (Multi-part image upload and base64 handling for avatars, banners, and covers)
+- Updated `App/update_profile.php` to accept binary image file (`$_FILES['avatar']` / `$_FILES['image']`), Base64 string, or image URL.
+
+
+4) Realtime Audio Live & ZegoCloud / Agora RTC APIs:
+- Created `App/room_token.php`: Generates Agora / ZegoCloud RTC credentials for Party Rooms.
+- Created `App/room_send_gift.php`: Atomic transaction for gifts inside Party Rooms with broadcaster payload.
+- Created `App/room_seats.php`: 12-seat matrix status query.
+- Created `App/room_seat_take.php`, `App/room_seat_leave.php`, `App/room_seat_mute.php`, `App/room_seat_kick.php`: Seat moderation fallbacks.
+- Created `nodeapi.md`: Realtime Socket.io events specification for Node.js gateway.
+- Created `appapiconnect.md`: Comprehensive Flutter App integration guide for PHP + Node.js + RTC.
+
 ========================================================================
+
 

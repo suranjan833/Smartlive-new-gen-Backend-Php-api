@@ -1,0 +1,29 @@
+name: Deploy to cPanel via FTP
+
+on:
+  push:
+    branches:
+      - main # or master
+
+jobs:
+  web-deploy:
+    name: Deploy to cPanel
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🚚 Get latest code
+        uses: actions/checkout@v4
+
+      - name: 📂 Sync files to cPanel
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: public_html/smart/php-api/ # cPanel target path
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            .gemini/**
+            scratch/**
+            *.sql
